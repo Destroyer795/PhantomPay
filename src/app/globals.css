@@ -14,8 +14,21 @@
   --primary-glow: rgba(99, 102, 241, 0.3);
   --accent: #8b5cf6;
   --success: #10b981;
+  --success-muted: rgba(16, 185, 129, 0.4);
   --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.4);
   --error: #ef4444;
+  --error-muted: rgba(239, 68, 68, 0.4);
+  --info: #3b82f6;
+  --info-muted: rgba(59, 130, 246, 0.4);
+  
+  /* Offline-First UI Colors */
+  --status-pending: #fb923c;
+  --status-syncing: #60a5fa;
+  --status-synced: #34d399;
+  --status-failed: #f87171;
+  --status-conflict: #fbbf24;
+  --status-stale: #fb923c;
 }
 
 * {
@@ -42,6 +55,11 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   border-radius: 1.5rem;
+  transition: border-color 0.3s ease, transform 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .primary-button {
@@ -87,7 +105,7 @@ body {
 }
 
 /* ============================================
-   STATUS INDICATORS
+   STATUS INDICATORS - Enhanced for Offline-First
    ============================================ */
 
 .status-online {
@@ -99,19 +117,31 @@ body {
 }
 
 .status-pending {
-  color: var(--warning);
+  color: var(--status-pending);
+}
+
+.status-syncing {
+  color: var(--status-syncing);
 }
 
 .status-synced {
-  color: var(--success);
+  color: var(--status-synced);
 }
 
 .status-failed {
-  color: var(--error);
+  color: var(--status-failed);
+}
+
+.status-conflict {
+  color: var(--status-conflict);
+}
+
+.status-stale {
+  color: var(--status-stale);
 }
 
 /* ============================================
-   ANIMATIONS
+   ANIMATIONS - Enhanced for Offline-First UI
    ============================================ */
 
 @keyframes float {
@@ -149,6 +179,98 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
+}
+
+@keyframes slide-in-from-top {
+  from { 
+    opacity: 0; 
+    transform: translateY(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-slide-in-top {
+  animation: slide-in-from-top 0.4s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-pulse-scale {
+  animation: pulse-scale 2s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-indeterminate {
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+/* State-specific animations */
+.pending-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Sync status ripple effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.status-ripple::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  animation: ripple 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 /* ============================================
