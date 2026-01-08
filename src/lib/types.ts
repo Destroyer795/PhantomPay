@@ -11,7 +11,7 @@ export type TransactionType = 'credit' | 'debit';
 /**
  * Sync status for offline transactions
  */
-export type SyncStatus = 'pending' | 'synced' | 'failed';
+export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
 
 /**
  * Offline Transaction stored in Dexie (IndexedDB)
@@ -27,6 +27,13 @@ export interface OfflineTransaction {
     signature: string; // SHA256(offline_id + user_id + amount + timestamp + salt)
     sync_status: SyncStatus;
     created_at: string; // ISO string
+    retry_count?: number; // Number of sync retry attempts
+    last_sync_attempt?: number; // Unix timestamp of last sync attempt
+    conflict_data?: {
+        server_version: Partial<OfflineTransaction>;
+        resolved?: boolean;
+    };
+    is_editable?: boolean; // Can user edit this pending transaction?
 }
 
 /**
@@ -37,6 +44,10 @@ export interface WalletState {
     cached_balance: number; // Last known balance from server
     shadow_balance: number; // Real effective balance (cached - pending debits)
     last_updated: number; // Unix timestamp
+    last_sync_success?: number; // Unix timestamp of last successful sync
+    pending_debits?: number; // Sum of pending outgoing transactions
+    pending_credits?: number; // Sum of pending incoming transactions
+    is_stale?: boolean; // True if last sync > 24 hours ago
 }
 
 /**
@@ -90,4 +101,30 @@ export interface QRPaymentData {
     amount?: number;
     timestamp: number;
     signature: string;
+}
+
+/**
+ * Sync queue item for UI visibility
+ */
+export interface SyncQueueItem {
+    id: string;
+    type: 'transaction' | 'profile' | 'voice_command' | 'qr_scan';
+    description: string;
+    status: SyncStatus;
+    retry_count: number;
+    max_retries: number;
+    created_at: number;
+    last_attempt?: number;
+    error_message?: string;
+}
+
+/**
+ * Voice command payload for offline queuing
+ */
+export interface VoiceCommandPayload {
+    audio_blob?: Blob;
+    transcript?: string;
+    timestamp: number;
+    processed: boolean;
+    sync_status: SyncStatus;
 }
