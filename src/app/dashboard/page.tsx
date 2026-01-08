@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-    Clock, ChevronRight, LogOut, Shield, RefreshCw, ArrowUpRight, ArrowDownLeft, QrCode, Mic, Wallet
+    Clock, ChevronRight, LogOut, Shield, RefreshCw, ArrowUpRight, ArrowDownLeft, QrCode, Wallet, Scan
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -14,6 +14,8 @@ import { TransactionList } from '@/components/TransactionList';
 import { PaymentForm } from '@/components/PaymentForm';
 import { NetworkStatus } from '@/components/NetworkStatus';
 import { VoiceInputButton } from '@/components/VoiceInputButton';
+import { QRRequestModal } from '@/components/QRCodeGenerator';
+import { QRPaymentModal } from '@/components/QRCodeScanner';
 
 /**
  * Main Dashboard Page
@@ -29,9 +31,11 @@ import { VoiceInputButton } from '@/components/VoiceInputButton';
 
 export default function Dashboard() {
     const [userId, setUserId] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string>('');
     const [isAuthChecking, setIsAuthChecking] = useState(true);
     const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [activeTab, setActiveTab] = useState<'transactions' | 'actions'>('transactions');
+    const [showQRReceive, setShowQRReceive] = useState(false);
+    const [showQRScan, setShowQRScan] = useState(false);
     const router = useRouter();
 
     // Check Authentication
@@ -42,6 +46,7 @@ export default function Dashboard() {
                 router.push('/');
             } else {
                 setUserId(user.id);
+                setUserName(user.email?.split('@')[0] || 'User');
                 setIsAuthChecking(false);
             }
         };
@@ -54,6 +59,7 @@ export default function Dashboard() {
                 router.push('/');
             } else {
                 setUserId(session.user.id);
+                setUserName(session.user.email?.split('@')[0] || 'User');
                 setIsAuthChecking(false);
             }
         });
@@ -103,6 +109,15 @@ export default function Dashboard() {
     // Handle receiving money
     const handleReceive = async (amount: number, description: string) => {
         return await addTransaction(amount, description, 'credit');
+    };
+
+    // Handle QR payment (from scanner)
+    const handleQRPayment = async (amount: number, recipientId: string, description: string) => {
+        const success = await addTransaction(amount, description, 'debit');
+        if (success) {
+            setShowQRScan(false);
+        }
+        return success;
     };
 
     // Show loading screen while checking auth
@@ -202,26 +217,32 @@ export default function Dashboard() {
                     </button>
                 </section>
 
-                {/* Additional Actions */}
+                {/* QR Actions */}
                 <section className="grid grid-cols-2 gap-4">
-                    <button className="glass-card p-4 flex items-center gap-3 hover:border-purple-500/30 transition-colors">
+                    <button
+                        onClick={() => setShowQRScan(true)}
+                        className="glass-card p-4 flex items-center gap-3 hover:border-purple-500/30 transition-colors"
+                    >
                         <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                            <QrCode className="w-5 h-5 text-purple-400" />
+                            <Scan className="w-5 h-5 text-purple-400" />
                         </div>
                         <div className="text-left">
-                            <span className="font-medium text-white text-sm">QR Code</span>
-                            <p className="text-xs text-slate-500">Scan to pay</p>
+                            <span className="font-medium text-white text-sm">Scan QR</span>
+                            <p className="text-xs text-slate-500">Pay someone</p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 ml-auto" />
                     </button>
 
-                    <button className="glass-card p-4 flex items-center gap-3 hover:border-amber-500/30 transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                            <Mic className="w-5 h-5 text-amber-400" />
+                    <button
+                        onClick={() => setShowQRReceive(true)}
+                        className="glass-card p-4 flex items-center gap-3 hover:border-emerald-500/30 transition-colors"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <QrCode className="w-5 h-5 text-emerald-400" />
                         </div>
                         <div className="text-left">
-                            <span className="font-medium text-white text-sm">Voice</span>
-                            <p className="text-xs text-slate-500">Zudu AI</p>
+                            <span className="font-medium text-white text-sm">My QR</span>
+                            <p className="text-xs text-slate-500">Receive payment</p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 ml-auto" />
                     </button>
@@ -263,6 +284,41 @@ export default function Dashboard() {
                         >
                             Cancel
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* QR Scanner Modal (Pay Mode) */}
+            {showQRScan && userId && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowQRScan(false)}
+                    />
+                    <div className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 animate-fade-in">
+                        <QRPaymentModal
+                            userId={userId}
+                            maxAmount={shadowBalance}
+                            onPayment={handleQRPayment}
+                            onClose={() => setShowQRScan(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* QR Receive Modal */}
+            {showQRReceive && userId && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowQRReceive(false)}
+                    />
+                    <div className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 animate-fade-in">
+                        <QRRequestModal
+                            userId={userId}
+                            userName={userName}
+                            onClose={() => setShowQRReceive(false)}
+                        />
                     </div>
                 </div>
             )}

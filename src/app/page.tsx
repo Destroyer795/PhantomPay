@@ -15,6 +15,7 @@ export default function LoginPage() {
     const [configError, setConfigError] = useState(false);
     const router = useRouter();
 
+
     React.useEffect(() => {
         if (!isSupabaseConfigured()) {
             setConfigError(true);
@@ -237,7 +238,7 @@ export default function LoginPage() {
 
                 {/* Demo Note */}
                 <p className="text-center text-slate-600 text-xs mt-6">
-                    Build2Break Hackathon 2024
+                    Build2Break Hackathon 2026
                 </p>
             </div>
         </main>

@@ -120,7 +120,7 @@ export default function ProfilePage() {
                 {/* App Info */}
                 <section className="text-center pt-4">
                     <p className="text-slate-600 text-sm">PhantomPay v0.1.0</p>
-                    <p className="text-slate-700 text-xs mt-1">Build2Break Hackathon 2024</p>
+                    <p className="text-slate-700 text-xs mt-1">Build2Break Hackathon 2026</p>
                 </section>
             </div>
 
