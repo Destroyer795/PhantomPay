@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Shield, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, Mail, Lock, Loader2, AlertCircle, Wallet } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [initialBalance, setInitialBalance] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -32,12 +33,24 @@ export default function LoginPage() {
 
         try {
             if (isSignUp) {
+                // Validate initial balance
+                const balanceValue = initialBalance ? parseFloat(initialBalance) : 10000;
+                if (isNaN(balanceValue) || balanceValue < 0) {
+                    throw new Error('Please enter a valid initial balance');
+                }
+                if (balanceValue > 10000000) {
+                    throw new Error('Initial balance cannot exceed 10,000,000');
+                }
+
                 // Sign up
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
                         emailRedirectTo: `${window.location.origin}/`,
+                        data: {
+                            initial_balance: balanceValue
+                        }
                     }
                 });
 
@@ -157,6 +170,35 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        {/* Initial Balance - Only show during sign up */}
+                        {isSignUp && (
+                            <div>
+                                <label htmlFor="initialBalance" className="block text-sm font-medium text-slate-400 mb-2">
+                                    Initial Balance (Rs)
+                                </label>
+                                <div className="relative">
+                                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                                    <input
+                                        type="number"
+                                        id="initialBalance"
+                                        value={initialBalance}
+                                        onChange={(e) => setInitialBalance(e.target.value)}
+                                        placeholder="10000"
+                                        className="input-field input-field-with-icon"
+                                        min="0"
+                                        max="10000000"
+                                        step="100"
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1.5">
+                                    {initialBalance && !isNaN(parseFloat(initialBalance)) 
+                                        ? `Starting with Rs ${parseFloat(initialBalance).toLocaleString()}`
+                                        : 'Leave empty for default (Rs 10,000)'}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Error */}
                         {error && (
                             <div className="flex flex-col gap-2 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
@@ -226,6 +268,7 @@ export default function LoginPage() {
                                 setIsSignUp(!isSignUp);
                                 setError(null);
                                 setMessage(null);
+                                setInitialBalance(''); // Clear initial balance when toggling
                             }}
                             className="text-slate-400 hover:text-white text-sm transition-colors"
                         >

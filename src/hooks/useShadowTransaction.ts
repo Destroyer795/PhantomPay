@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { db, addOfflineTransaction, getWalletState, updateWalletState, getPendingTransactions } from '@/lib/db';
 import { generateSignature, generateOfflineId } from '@/utils/crypto';
 import { syncOfflineTransactions } from '@/lib/syncEngine';
+import { supabase } from '@/lib/supabase';
 import type { OfflineTransaction, WalletState, TransactionType } from '@/lib/types';
 
 /**
@@ -48,12 +49,29 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
         try {
             let state = await getWalletState(userId);
 
-            // Initialize if doesn't exist
+            // Initialize if doesn't exist - fetch from Supabase profile
             if (!state) {
+                // Fetch user's actual balance from Supabase
+                let initialBalance = 10000; // Fallback default
+                
+                try {
+                    const { data: profile, error } = await supabase
+                        .from('profiles')
+                        .select('balance')
+                        .eq('id', userId)
+                        .single();
+                    
+                    if (!error && profile) {
+                        initialBalance = parseFloat(profile.balance) || 10000;
+                    }
+                } catch (err) {
+                    console.warn('Could not fetch profile balance, using default:', err);
+                }
+
                 state = {
                     id: userId,
-                    cached_balance: 10000, // Default starting balance
-                    shadow_balance: 10000,
+                    cached_balance: initialBalance,
+                    shadow_balance: initialBalance,
                     last_updated: Date.now()
                 };
                 await updateWalletState(state);
