@@ -32,12 +32,16 @@ export function PaymentForm({ onSubmit, maxAmount, disabled }: PaymentFormProps)
 
         const numAmount = parseFloat(amount);
 
-        if (isNaN(numAmount) || numAmount <= 0) {
-            setError('Please enter a valid amount');
+        // SEC-04 Fix: Comprehensive amount validation
+        if (isNaN(numAmount) || !Number.isFinite(numAmount) || numAmount <= 0) {
+            setError('Please enter a valid positive amount');
             return;
         }
 
-        if (maxAmount && numAmount > maxAmount) {
+        // Round to 2 decimal places for consistency
+        const roundedAmount = Math.round(numAmount * 100) / 100;
+
+        if (maxAmount && roundedAmount > maxAmount) {
             setError(`Insufficient balance. Max: ${maxAmount.toLocaleString()} Rs`);
             return;
         }

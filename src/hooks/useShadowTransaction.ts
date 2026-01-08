@@ -152,6 +152,12 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
             return false;
         }
 
+        // SEC-04 Fix: Validate amount is positive and finite
+        if (!Number.isFinite(amount) || amount <= 0) {
+            console.error('Invalid amount: must be a positive number');
+            return false;
+        }
+
         // SEC-06 Fix: Sanitize description
         const safeDescription = description
             .replace(/[<>]/g, '') // Remove angle brackets (XSS prevention)
@@ -161,6 +167,12 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
 
         // SEC-05 Fix: Round amount to 2 decimal places
         const safeAmount = Math.round(amount * 100) / 100;
+
+        // Double-check safeAmount is still valid after rounding
+        if (safeAmount <= 0) {
+            console.error('Amount too small');
+            return false;
+        }
 
         // Check sufficient balance for debits
         if (type === 'debit' && walletState.shadow_balance < safeAmount) {
