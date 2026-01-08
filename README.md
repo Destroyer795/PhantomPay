@@ -1,19 +1,19 @@
-# 🛡️ ResilientPay
+# PhantomPay
 
-**Offline-First Payment Tracker | Build2Break Hackathon 2024**
+**Offline-First Payment Tracker | Build2Break Hackathon 2026**
 
-> Your payments are protected by our offline-sync technology. Even if everything goes down, ResilientPay saves every transaction.
+> Your payments are protected by our offline-sync technology. Even if everything goes down, PhantomPay saves every transaction.
 
-## 🎯 The Problem
+## The Problem
 
 In regions with unstable internet, users often cannot complete payments or forget to record expenses when the network is down. This leads to:
 - Lost transaction records
 - Chaos in personal finances
 - Failed business operations
 
-## 💡 Our Solution: The Shadow Ledger
+## Our Solution: The Shadow Ledger
 
-ResilientPay uses a **Local-First** approach: the app is always available. Even if the server goes down, your data is safe on your device.
+PhantomPay uses a **Local-First** approach: the app is always available. Even if the server goes down, your data is safe on your device.
 
 ### Key Concepts:
 - **Shadow Balance**: The real-time effective balance calculated locally
@@ -22,7 +22,7 @@ ResilientPay uses a **Local-First** approach: the app is always available. Even 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+
@@ -32,8 +32,8 @@ ResilientPay uses a **Local-First** approach: the app is always available. Even 
 ### 1. Clone & Install
 
 ```bash
-git clone <your-repo-url>
-cd resilient-pay
+git clone <https://github.com/Destroyer795/PhantomPay.git>
+cd phantom-pay
 npm install
 ```
 
@@ -69,19 +69,19 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Build & Run
 
 ```bash
 # Build the image
-docker build -t resilientpay .
+docker build -t phantmpay .
 
 # Run with environment variables
 docker run -p 3000:3000 \
   -e NEXT_PUBLIC_SUPABASE_URL=your_url \
   -e NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key \
-  resilientpay
+  phantmpay
 ```
 
 ### Using Docker Compose
@@ -93,52 +93,7 @@ docker-compose up --build
 
 ---
 
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER DEVICE                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
-│  │   React UI  │───▶│   Hooks     │───▶│  Dexie.js (IndexedDB)│ │
-│  │             │    │  - Shadow   │    │  - transactions     │  │
-│  │  - Balance  │    │  - Zudu AI  │    │  - wallet           │  │
-│  │  - List     │    │  - Online   │    │                     │  │
-│  └─────────────┘    └─────────────┘    └──────────┬──────────┘  │
-│                                                    │             │
-│                           ┌────────────────────────┘             │
-│                           ▼                                      │
-│                    ┌─────────────┐                               │
-│                    │ Sync Engine │                               │
-│                    │             │                               │
-│                    │ - Batch     │                               │
-│                    │ - Retry     │                               │
-│                    │ - Sign      │                               │
-│                    └──────┬──────┘                               │
-└───────────────────────────┼─────────────────────────────────────┘
-                            │ (When Online)
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       SUPABASE CLOUD                            │
-│  ┌─────────────────┐    ┌──────────────────────────────────────┐│
-│  │   Auth          │    │         PostgreSQL                   ││
-│  │                 │    │  ┌─────────────┐  ┌───────────────┐  ││
-│  │  - Email/Pass   │    │  │  profiles   │  │ transactions  │  ││
-│  │  - OAuth        │    │  │  - balance  │  │ - offline_id  │  ││
-│  └─────────────────┘    │  └─────────────┘  │ - signature   │  ││
-│                         │                    └───────────────┘  ││
-│                         │  ┌────────────────────────────────┐   ││
-│                         │  │    process_offline_batch()     │   ││
-│                         │  │    - Idempotency check         │   ││
-│                         │  │    - Signature verify          │   ││
-│                         │  │    - Balance validation        │   ││
-│                         │  └────────────────────────────────┘   ││
-│                         └──────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🔐 Security Features
+## Security Features
 
 ### 1. Idempotency (Replay Attack Prevention)
 Every offline transaction gets a unique `offline_id` (UUID v4). The server rejects duplicate IDs.
@@ -154,91 +109,10 @@ Server-side check prevents overdraft even if client is compromised.
 
 ---
 
-## 📁 Project Structure
+## Tech Stack
 
-```
-resilient-pay/
-├── src/
-│   ├── app/                 # Next.js App Router
-│   │   ├── layout.tsx       # Root layout
-│   │   ├── page.tsx         # Dashboard
-│   │   └── globals.css      # Global styles
-│   │
-│   ├── components/          # React components
-│   │   ├── BalanceCard.tsx
-│   │   ├── PaymentForm.tsx
-│   │   ├── TransactionList.tsx
-│   │   └── NetworkStatus.tsx
-│   │
-│   ├── hooks/               # Custom React hooks
-│   │   ├── useShadowTransaction.ts  # Core offline logic
-│   │   ├── useOnlineStatus.ts       # Network detection
-│   │   └── useZuduAgent.ts          # Voice input
-│   │
-│   ├── lib/                 # Core libraries
-│   │   ├── db.ts            # Dexie.js schema
-│   │   ├── supabase.ts      # Supabase client
-│   │   ├── syncEngine.ts    # Sync logic
-│   │   └── types.ts         # TypeScript types
-│   │
-│   └── utils/               # Utilities
-│       └── crypto.ts        # Signing functions
-│
-├── supabase/
-│   └── migrations/
-│       └── 001_initial_schema.sql
-│
-├── public/
-│   └── manifest.json        # PWA manifest
-│
-├── Dockerfile
-├── docker-compose.yml
-└── package.json
-```
-
----
-
-## 👥 Team Responsibilities
-
-| Member | Role | Focus |
-|--------|------|-------|
-| **A** | Backend & DevOps | Supabase, Docker, Security |
-| **B** | Core Logic | Dexie.js, Sync Engine, Hooks |
-| **C** | Frontend | UI/UX, Components, QR |
-| **D** | AI & PWA | Zudu Voice, Service Workers |
-
----
-
-## 🧪 Break Phase Defense
-
-### Test 1: Offline Persistence
-1. Turn off WiFi
-2. Add 5 transactions
-3. Reload page
-4. ✅ Transactions should persist
-
-### Test 2: Replay Attack
-1. Add transaction online
-2. Capture sync request (DevTools)
-3. Replay via Postman
-4. ✅ Server should reject duplicate `offline_id`
-
-### Test 3: Negative Balance
-1. Go offline
-2. Try spending more than shadow balance
-3. ✅ UI should block transaction
-
-### Test 4: Tampered Request
-1. Intercept sync request
-2. Modify amount
-3. ✅ Server should reject (signature mismatch)
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Styling**: Tailwind CSS 4, Framer Motion
+- **Frontend**: Next.js, TypeScript
+- **Styling**: Tailwind CSS, Framer Motion
 - **Offline DB**: Dexie.js (IndexedDB)
 - **Backend**: Supabase (PostgreSQL, Auth, RLS)
 - **Crypto**: Web Crypto API (SHA-256)
@@ -249,8 +123,7 @@ resilient-pay/
 
 ## 📝 License
 
-MIT License - Build2Break Hackathon 2024
+MIT License - Build2Break Hackathon 2026
 
 ---
 
-**Built with ❤️ for resilience**
