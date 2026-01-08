@@ -24,11 +24,11 @@ export class ResilientDB extends Dexie {
     constructor() {
         super('PhantomPayDB');
 
-        // Schema definition
+        // Schema definition - Version 2 adds recipient_id for P2P transfers
         // Format: 'keyPath, index1, index2, ...'
         // ++id = auto-increment primary key
-        this.version(1).stores({
-            transactions: '++id, offline_id, user_id, amount, type, description, timestamp, sync_status, signature, retry_count, last_sync_attempt',
+        this.version(2).stores({
+            transactions: '++id, offline_id, user_id, recipient_id, amount, type, description, timestamp, sync_status, signature, retry_count, last_sync_attempt',
             wallet: 'id, cached_balance, shadow_balance, last_updated, last_sync_success'
         });
     }
@@ -135,7 +135,7 @@ export async function getSyncQueueItems(userId: string): Promise<import('./types
  * Update transaction sync status and retry count
  */
 export async function updateTransactionStatus(
-    offlineId: string, 
+    offlineId: string,
     status: import('./types').SyncStatus,
     incrementRetry: boolean = false
 ): Promise<void> {
@@ -143,7 +143,7 @@ export async function updateTransactionStatus(
         sync_status: status,
         last_sync_attempt: Date.now()
     };
-    
+
     if (incrementRetry) {
         const tx = await db.transactions.where('offline_id').equals(offlineId).first();
         if (tx) {
@@ -174,7 +174,7 @@ export async function getConflictTransactions(userId: string): Promise<import('.
 export async function checkWalletStaleness(userId: string): Promise<boolean> {
     const wallet = await getWalletState(userId);
     if (!wallet || !wallet.last_sync_success) return true;
-    
+
     const hoursSinceSync = (Date.now() - wallet.last_sync_success) / (1000 * 60 * 60);
     return hoursSinceSync > 24;
 }
@@ -184,15 +184,15 @@ export async function checkWalletStaleness(userId: string): Promise<boolean> {
  */
 export async function updateWalletPendingAmounts(userId: string): Promise<void> {
     const pendingTxs = await getPendingTransactions(userId);
-    
+
     const pending_debits = pendingTxs
         .filter(tx => tx.type === 'debit')
         .reduce((sum, tx) => sum + tx.amount, 0);
-    
+
     const pending_credits = pendingTxs
         .filter(tx => tx.type === 'credit')
         .reduce((sum, tx) => sum + tx.amount, 0);
-    
+
     const wallet = await getWalletState(userId);
     if (wallet) {
         await updateWalletState({

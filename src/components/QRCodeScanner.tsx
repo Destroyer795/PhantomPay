@@ -153,9 +153,11 @@ export function QRCodeScanner({ onScan, onClose, maxAmount }: QRCodeScannerProps
     }, []);
 
     const handleConfirmPayment = () => {
+        console.log('💳 handleConfirmPayment called', { scannedData, amount });
         if (!scannedData) return;
 
         const paymentAmount = scannedData.amount || parseFloat(amount);
+        console.log('💳 Payment amount:', paymentAmount, 'Max:', maxAmount);
 
         if (!paymentAmount || paymentAmount <= 0) {
             setError('Please enter a valid amount');
@@ -167,6 +169,7 @@ export function QRCodeScanner({ onScan, onClose, maxAmount }: QRCodeScannerProps
             return;
         }
 
+        console.log('💳 Calling onScan with:', { ...scannedData, amount: paymentAmount });
         onScan({
             ...scannedData,
             amount: paymentAmount
@@ -326,18 +329,25 @@ export function QRPaymentModal({ userId, maxAmount, onPayment, onClose }: QRPaym
     const [result, setResult] = useState<'success' | 'error' | null>(null);
 
     const handleScan = async (data: QRPaymentData) => {
-        if (!data.amount) return;
+        console.log('🔔 handleScan called with:', data);
+        if (!data.amount) {
+            console.error('❌ No amount in data!');
+            return;
+        }
 
         setIsProcessing(true);
         try {
             const description = `Payment to ${data.recipient_name || data.recipient_id.slice(0, 8)}`;
+            console.log('🔔 Calling onPayment:', { amount: data.amount, recipientId: data.recipient_id, description });
             const success = await onPayment(data.amount, data.recipient_id, description);
+            console.log('🔔 onPayment result:', success);
             setResult(success ? 'success' : 'error');
 
             if (success) {
                 setTimeout(() => onClose(), 1500);
             }
-        } catch {
+        } catch (err) {
+            console.error('❌ handleScan error:', err);
             setResult('error');
         } finally {
             setIsProcessing(false);

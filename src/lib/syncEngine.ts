@@ -6,15 +6,46 @@
  * This module handles synchronization of offline transactions with Supabase.
  * It implements:
  * - Batch syncing of pending transactions
+ * - Fetching server transactions (including received payments)
  * - Balance reconciliation
  * - Error handling and retry logic
- * 
- * Member B should implement the full logic here.
  */
 
 import { db, getPendingTransactions, markTransactionsSynced, updateWalletState } from './db';
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { SyncResponse, WalletState } from './types';
+import type { SyncResponse, WalletState, ServerTransaction } from './types';
+
+/**
+ * Fetch all transactions for a user from Supabase
+ * This includes both transactions they created AND payments received from others
+ */
+export async function fetchServerTransactions(userId: string): Promise<ServerTransaction[]> {
+    if (!isSupabaseConfigured() || !navigator.onLine) {
+        console.log('📴 Cannot fetch server transactions - offline or not configured');
+        return [];
+    }
+
+    try {
+        // Fetch transactions where user is sender OR recipient
+        const { data, error } = await supabase
+            .from('transactions')
+            .select('*')
+            .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error('❌ Error fetching server transactions:', error);
+            return [];
+        }
+
+        console.log(`✅ Fetched ${data?.length || 0} transactions from server`);
+        return data || [];
+    } catch (err) {
+        console.error('❌ Error fetching server transactions:', err);
+        return [];
+    }
+}
 
 /**
  * Sync all pending offline transactions to Supabase
@@ -45,6 +76,7 @@ export async function syncOfflineTransactions(userId: string): Promise<SyncRespo
         }
 
         console.log(`🔄 Syncing ${pending.length} transactions...`);
+        console.log('📤 Payload:', JSON.stringify(pending, null, 2)); // Debug log
 
         // Call the Supabase RPC function to process batch
         const { data, error } = await supabase.rpc('process_offline_batch', {
@@ -108,37 +140,6 @@ export async function fetchServerBalance(userId: string): Promise<number | null>
         return data?.balance ?? null;
     } catch (err) {
         console.error('Failed to fetch balance:', err);
-        return null;
-    }
-}
-
-/**
- * Fetch historical transactions from the server
- * 
- * @param userId - User's Supabase ID
- * @param limit - Maximum number of transactions to fetch
- */
-export async function fetchServerTransactions(userId: string, limit: number = 50) {
-    if (typeof window === 'undefined' || !navigator.onLine) {
-        return null;
-    }
-
-    if (!isSupabaseConfigured()) {
-        return null;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (error) throw error;
-        return data;
-    } catch (err) {
-        console.error('Failed to fetch transactions:', err);
         return null;
     }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Clock, ChevronRight, LogOut, Shield, RefreshCw, ArrowUpRight, ArrowDownLeft, QrCode, Wallet, Scan
 } from 'lucide-react';
@@ -16,6 +16,8 @@ import { NetworkStatus } from '@/components/NetworkStatus';
 import { VoiceInputButton } from '@/components/VoiceInputButton';
 import { QRRequestModal } from '@/components/QRCodeGenerator';
 import { QRPaymentModal } from '@/components/QRCodeScanner';
+import { fetchServerTransactions } from '@/lib/syncEngine';
+import type { ServerTransaction } from '@/lib/types';
 
 /**
  * Main Dashboard Page
@@ -36,6 +38,7 @@ export default function Dashboard() {
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [showQRReceive, setShowQRReceive] = useState(false);
     const [showQRScan, setShowQRScan] = useState(false);
+    const [serverTransactions, setServerTransactions] = useState<ServerTransaction[]>([]);
     const router = useRouter();
 
     // Check Authentication
@@ -84,18 +87,46 @@ export default function Dashboard() {
         syncNow
     } = useShadowTransaction(userId);
 
-    // Live query for transactions from Dexie
-    const transactions = useLiveQuery(
+    // Fetch server transactions (including received payments from others)
+    const loadServerTransactions = useCallback(async () => {
+        if (!userId || !isOnline) return;
+        console.log('📥 Fetching server transactions...');
+        const txns = await fetchServerTransactions(userId);
+        setServerTransactions(txns);
+    }, [userId, isOnline]);
+
+    // Load server transactions on mount and when userId/online status changes
+    useEffect(() => {
+        loadServerTransactions();
+    }, [loadServerTransactions]);
+
+    // Live query for LOCAL pending transactions from Dexie (for immediate UI feedback)
+    const localPendingTransactions = useLiveQuery(
         () => {
             if (!userId) return [];
             return db.transactions
                 .where('user_id')
                 .equals(userId)
+                .and(tx => tx.sync_status === 'pending')
                 .reverse()
                 .sortBy('timestamp');
         },
         [userId]
     );
+
+    // Combine local pending with server transactions for display
+    // Local pending show immediately, server shows synced + received payments
+    const allTransactions = [
+        ...(localPendingTransactions || []).map(tx => ({
+            ...tx,
+            id: tx.id || 0,
+            status: 'pending' as const,
+            created_at: tx.created_at
+        })),
+        ...serverTransactions.filter(stx =>
+            !(localPendingTransactions || []).some(ltx => ltx.offline_id === stx.offline_id)
+        )
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // Handle payment submission
     const handlePayment = async (amount: number, description: string) => {
@@ -113,8 +144,10 @@ export default function Dashboard() {
 
     // Handle QR payment (from scanner) - P2P transfer
     const handleQRPayment = async (amount: number, recipientId: string, description: string) => {
+        console.log('🎯 handleQRPayment called:', { amount, recipientId, description });
         // Pass recipientId for P2P transfer - server will credit recipient
         const success = await addTransaction(amount, description, 'debit', recipientId);
+        console.log('🎯 addTransaction result:', success);
         if (success) {
             setShowQRScan(false);
         }
@@ -253,14 +286,18 @@ export default function Dashboard() {
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-white">Recent Transactions</h2>
-                        {transactions && transactions.length > 0 && (
-                            <span className="text-sm text-slate-500">
-                                {transactions.length} total
-                            </span>
+                        {allTransactions.length > 0 && (
+                            <button
+                                onClick={loadServerTransactions}
+                                className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                            >
+                                <RefreshCw className="w-3 h-3" />
+                                Refresh
+                            </button>
                         )}
                     </div>
                     <TransactionList
-                        transactions={transactions || []}
+                        transactions={allTransactions as any}
                         isLoading={isLoading}
                     />
                 </section>
