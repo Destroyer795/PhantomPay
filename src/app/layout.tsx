@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     keywords: ["payments", "offline", "fintech", "PWA", "sync"],
     authors: [{ name: "Build2Break Hackathon Team" }],
     manifest: "/manifest.json",
+    icons: {
+        icon: '/favicon.svg',
+        apple: '/icon-192.png.svg',
+    },
     appleWebApp: {
         capable: true,
         statusBarStyle: "black-translucent",
@@ -32,10 +36,6 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <head>
-                <link rel="icon" href="/favicon.ico" sizes="any" />
-                <link rel="apple-touch-icon" href="/icon-192.png" />
-            </head>
             <body className={inter.className}>{children}</body>
         </html>
     );

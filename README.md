@@ -1,8 +1,31 @@
 # PhantomPay
 
-**Offline-First Payment Tracker | Build2Break Hackathon 2026**
+**Offline-First Payment Tracker with AI Voice Assistant | Build2Break Hackathon 2026**
 
+<<<<<<< Updated upstream
 > Your payments are protected by our offline-sync technology. Even if everything goes down, ctrlshiftalt saves every transaction.
+=======
+> Your payments are protected by our offline-sync technology. Even if everything goes down, PhantomPay saves every transaction. Now with AI-powered voice commands!
+
+## ✨ What's New: AI Voice Assistant 2.0
+
+🎙️ **Conversational AI** - Multi-turn conversations with natural language understanding  
+🎯 **Smart Intent Recognition** - Correctly identifies payment vs receive commands  
+🗣️ **Voice Feedback** - Speaks responses using text-to-speech  
+💬 **Query Support** - Ask for balance, transactions, and more  
+🌐 **Multiple Formats** - Understands "2k", "2 lakh", "two thousand" and more  
+
+**Try it:**
+- "Pay 500 for lunch" 💸
+- "Received 2000 from client" 💰
+- "What's my balance?" 💳
+- "Show last transaction" 📊
+
+👉 [Voice Assistant Documentation](./VOICE_ASSISTANT_README.md)  
+👉 [Testing Guide](./VOICE_TESTING_GUIDE.md)
+
+---
+>>>>>>> Stashed changes
 
 ## The Problem
 
@@ -19,6 +42,7 @@ ctrlshiftalt uses a **Local-First** approach: the app is always available. Even 
 - **Shadow Balance**: The real-time effective balance calculated locally
 - **Cached Balance**: Last known balance from the server
 - **Offline Transactions**: Signed, timestamped records stored locally until sync
+- **AI Voice Assistant**: Conversational interface for hands-free transaction management
 
 ---
 

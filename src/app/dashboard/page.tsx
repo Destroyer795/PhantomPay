@@ -13,7 +13,7 @@ import { BalanceCard } from '@/components/BalanceCard';
 import { TransactionList } from '@/components/TransactionList';
 import { PaymentForm } from '@/components/PaymentForm';
 import { NetworkStatus } from '@/components/NetworkStatus';
-import { VoiceInputButton } from '@/components/VoiceInputButton';
+import { VoiceAssistant } from '@/components/VoiceAssistant';
 import { QRRequestModal } from '@/components/QRCodeGenerator';
 import { QRPaymentModal } from '@/components/QRCodeScanner';
 
@@ -137,6 +137,34 @@ export default function Dashboard() {
             setShowQRScan(false);
         }
         return success;
+    };
+
+    // Handle balance query for voice assistant
+    const handleBalanceQuery = async (): Promise<number> => {
+        return shadowBalance;
+    };
+
+    // Handle transactions query for voice assistant
+    const handleTransactionsQuery = async (): Promise<string> => {
+        if (!transactions || transactions.length === 0) {
+            return 'You have no transactions yet.';
+        }
+        
+        const lastTransaction = transactions[0];
+        const type = lastTransaction.type === 'debit' ? 'paid' : 'received';
+        const timeAgo = formatTimeAgo(lastTransaction.timestamp);
+        
+        return `Your last transaction: ${type} ${lastTransaction.amount.toLocaleString('en-IN')} Rs for ${lastTransaction.description}, ${timeAgo}.`;
+    };
+
+    // Helper to format time ago
+    const formatTimeAgo = (timestamp: number): string => {
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+        return `${Math.floor(seconds / 86400)} days ago`;
     };
 
     // Show loading screen while checking auth
@@ -342,9 +370,12 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Voice Input FAB */}
-            <VoiceInputButton
+            {/* Voice Assistant with AI */}
+            <VoiceAssistant
                 onTransaction={addTransaction}
+                currentBalance={shadowBalance}
+                onBalanceQuery={handleBalanceQuery}
+                onTransactionsQuery={handleTransactionsQuery}
                 disabled={isLoading}
             />
 

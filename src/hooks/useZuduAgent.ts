@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { parseIntent } from '@/lib/nlp/intentParser';
+import { extractEntities } from '@/lib/nlp/entityExtractor';
 
 /**
  * useZuduAgent Hook
@@ -8,11 +10,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
  * Voice-based transaction input using Web Speech API.
  * Listens for commands like "Pay 500 for lunch" and extracts transaction data.
  * 
- * Member D should enhance with:
- * - Better NLP extraction
- * - Confirmation flow
- * - Multi-language support
- * - Zudu SDK integration if provided
+ * LEGACY: This hook is now superseded by useConversationalVoice.
+ * Kept for backward compatibility. Uses new NLP engine internally.
  */
 
 interface VoiceCommand {
@@ -48,65 +47,41 @@ export function useZuduAgent(): UseZuduAgentResult {
 
     /**
      * Parse voice input to extract transaction data
-     * Patterns:
-     * - "Pay 500 for lunch"
-     * - "Spent 150 on taxi"
-     * - "Received 1000 from John"
-     * - "Got 500 for freelance work"
+     * Updated to use new NLP engine with better intent recognition
      */
     const processText = useCallback((text: string): VoiceCommand | null => {
         const normalizedText = text.toLowerCase().trim();
 
-        // Debit patterns
-        const debitPatterns = [
-            /(?:pay|paid|spent|spend)\s+(\d+(?:\.\d{2})?)\s+(?:for|on)\s+(.+)/i,
-            /(\d+(?:\.\d{2})?)\s+(?:for|on)\s+(.+)/i,
-        ];
+        // Use new NLP engine
+        const intent = parseIntent(text);
+        const entities = extractEntities(text);
 
-        // Credit patterns
-        const creditPatterns = [
-            /(?:received|got|earned)\s+(\d+(?:\.\d{2})?)\s+(?:from|for)\s+(.+)/i,
-            /(?:income|payment)\s+(\d+(?:\.\d{2})?)\s+(?:from|for)\s+(.+)/i,
-        ];
-
-        // Try debit patterns
-        for (const pattern of debitPatterns) {
-            const match = normalizedText.match(pattern);
-            if (match) {
-                return {
-                    amount: parseFloat(match[1]),
-                    description: match[2].trim(),
-                    type: 'debit',
-                    confidence: 0.8
-                };
-            }
+        // Check if we have enough information
+        if (!entities.hasAmount || entities.amount === null) {
+            return null;
         }
 
-        // Try credit patterns
-        for (const pattern of creditPatterns) {
-            const match = normalizedText.match(pattern);
-            if (match) {
-                return {
-                    amount: parseFloat(match[1]),
-                    description: match[2].trim(),
-                    type: 'credit',
-                    confidence: 0.8
-                };
-            }
+        // Determine transaction type from intent
+        let type: 'credit' | 'debit' = 'debit'; // Default to debit
+        
+        if (intent.type === 'receive') {
+            type = 'credit';
+        } else if (intent.type === 'payment') {
+            type = 'debit';
         }
 
-        // Simple number extraction as fallback
-        const amountMatch = normalizedText.match(/(\d+(?:\.\d{2})?)/);
-        if (amountMatch) {
-            return {
-                amount: parseFloat(amountMatch[1]),
-                description: normalizedText.replace(amountMatch[0], '').trim() || 'Voice transaction',
-                type: 'debit', // Default to debit
-                confidence: 0.5
-            };
-        }
+        // Calculate overall confidence
+        const confidence = Math.min(
+            (intent.confidence + entities.confidence) / 2,
+            1.0
+        );
 
-        return null;
+        return {
+            amount: entities.amount,
+            description: entities.description,
+            type,
+            confidence
+        };
     }, []);
 
     // Check for speech recognition support
