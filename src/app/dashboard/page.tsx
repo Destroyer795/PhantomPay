@@ -16,6 +16,8 @@ import { NetworkStatus } from '@/components/NetworkStatus';
 import { VoiceAssistant } from '@/components/VoiceAssistant';
 import { QRRequestModal } from '@/components/QRCodeGenerator';
 import { QRPaymentModal } from '@/components/QRCodeScanner';
+import { PaymentRequestForm } from '@/components/PaymentRequestForm';
+import { IncomingRequestModal } from '@/components/IncomingRequestModal';
 
 /**
  * Main Dashboard Page
@@ -36,6 +38,8 @@ export default function Dashboard() {
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [showQRReceive, setShowQRReceive] = useState(false);
     const [showQRScan, setShowQRScan] = useState(false);
+    const [showRequestForm, setShowRequestForm] = useState(false);
+    const [incomingRequest, setIncomingRequest] = useState<any>(null);
     const router = useRouter();
 
     // Check Authentication
@@ -101,15 +105,52 @@ export default function Dashboard() {
                 },
                 async (payload) => {
                     console.log('🔔 Incoming P2P transaction received!', payload);
-                    // Trigger sync to fetch the new transaction and update balance
-                    // We call useShadowTransaction's syncNow via a small delay to ensure DB consistency
-                    // but we can't access the hook's syncNow directly here easily without prop drilling or context.
-                    // Instead, we will force a re-render/fetch using Dexie + SyncEngine directly.
-
                     const { syncWalletFromServer } = require('@/lib/syncEngine');
                     await syncWalletFromServer(userId);
+                }
+            )
+            .subscribe();
 
-                    // Also trigger a UI refresh if possible (liveQuery handles Dexie updates automatically)
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId]);
+
+    // Realtime subscription for incoming payment requests + fetch pending on load
+    useEffect(() => {
+        if (!userId) return;
+
+        // Fetch any pending requests when user logs in
+        const fetchPendingRequests = async () => {
+            const { data, error } = await supabase
+                .from('payment_requests')
+                .select('*')
+                .eq('payer_id', userId)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (!error && data && data.length > 0) {
+                console.log('📨 Found pending request on login:', data[0]);
+                setIncomingRequest(data[0]);
+            }
+        };
+        fetchPendingRequests();
+
+        // Listen for new incoming requests in realtime
+        const channel = supabase
+            .channel('payment-requests')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'payment_requests',
+                    filter: `payer_id=eq.${userId}`
+                },
+                (payload) => {
+                    console.log('🔔 Incoming payment request!', payload);
+                    setIncomingRequest(payload.new);
                 }
             )
             .subscribe();
@@ -184,18 +225,18 @@ export default function Dashboard() {
         if (!transactions || transactions.length === 0) {
             return 'You have no transactions yet.';
         }
-        
+
         const lastTransaction = transactions[0];
         const type = lastTransaction.type === 'debit' ? 'paid' : 'received';
         const timeAgo = formatTimeAgo(lastTransaction.timestamp);
-        
+
         return `Your last transaction: ${type} ${lastTransaction.amount.toLocaleString('en-IN')} Rs for ${lastTransaction.description}, ${timeAgo}.`;
     };
 
     // Helper to format time ago
     const formatTimeAgo = (timestamp: number): string => {
         const seconds = Math.floor((Date.now() - timestamp) / 1000);
-        
+
         if (seconds < 60) return 'just now';
         if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
@@ -281,21 +322,13 @@ export default function Dashboard() {
                     </button>
 
                     <button
-                        onClick={() => {
-                            const amount = prompt('Enter amount to receive:');
-                            if (amount) {
-                                const numAmount = parseFloat(amount);
-                                if (!isNaN(numAmount) && numAmount > 0) {
-                                    handleReceive(numAmount, 'Received payment');
-                                }
-                            }
-                        }}
+                        onClick={() => setShowRequestForm(true)}
                         className="glass-card p-5 flex flex-col items-center gap-3 hover:border-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                         <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
                             <ArrowDownLeft className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <span className="font-semibold text-white">Receive</span>
+                        <span className="font-semibold text-white">Request</span>
                     </button>
                 </section>
 
@@ -403,6 +436,54 @@ export default function Dashboard() {
                         />
                     </div>
                 </div>
+            )}
+
+            {/* Payment Request Modal */}
+            {showRequestForm && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowRequestForm(false)}
+                    />
+                    <div className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 animate-fade-in">
+                        <PaymentRequestForm
+                            onSuccess={() => setShowRequestForm(false)}
+                            onClose={() => setShowRequestForm(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Incoming Payment Request Modal */}
+            {incomingRequest && (
+                <IncomingRequestModal
+                    request={incomingRequest}
+                    currentBalance={shadowBalance}
+                    onRespond={async () => {
+                        // Refresh balance from Supabase since the payment was processed server-side
+                        if (userId) {
+                            const { data: profile } = await supabase
+                                .from('profiles')
+                                .select('balance')
+                                .eq('id', userId)
+                                .single();
+
+                            if (profile) {
+                                // Force refresh the wallet state
+                                const { updateWalletState } = await import('@/lib/db');
+                                await updateWalletState({
+                                    id: userId,
+                                    cached_balance: parseFloat(profile.balance),
+                                    shadow_balance: parseFloat(profile.balance),
+                                    last_updated: Date.now()
+                                });
+                            }
+                        }
+                        // Also trigger normal sync
+                        syncNow();
+                    }}
+                    onClose={() => setIncomingRequest(null)}
+                />
             )}
 
             {/* Voice Assistant with AI */}
