@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import type { OfflineTransaction, WalletState } from './types';
 
 /**
- * PhantomPay Local Database
+ * ResilientPay Local Database
  * 
  * This is the "Shadow Ledger" - the client-side database that enables
  * offline-first functionality. All transactions are first recorded here,
@@ -22,7 +22,7 @@ export class ResilientDB extends Dexie {
     wallet!: Table<WalletState>;
 
     constructor() {
-        super('PhantomPayDB');
+        super('ResilientPayDB');
 
         // Schema definition
         // Format: 'keyPath, index1, index2, ...'
