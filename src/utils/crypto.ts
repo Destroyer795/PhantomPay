@@ -4,10 +4,15 @@
  * These functions handle transaction signing to prevent:
  * - Replay attacks
  * - Parameter tampering during sync
+ * 
+ * SECURITY WARNING: Client-side signatures are for demo/offline-first purposes only.
+ * In production, signature verification MUST be done server-side with a SECRET salt.
+ * The NEXT_PUBLIC_ prefix exposes the salt to clients, making signatures forgeable.
  */
 
-// Signing salt - in production this should be more secure
-const SIGNING_SALT = process.env.NEXT_PUBLIC_SIGNING_SALT || 'phantom-pay-hackathon-salt-2026';
+// NOTE: This salt is intentionally client-side for offline signing.
+// Server must re-verify with its own secret salt before processing.
+const SIGNING_SALT = process.env.NEXT_PUBLIC_SIGNING_SALT || 'phantom-pay-demo-salt';
 
 /**
  * Generate a SHA-256 signature for an offline transaction

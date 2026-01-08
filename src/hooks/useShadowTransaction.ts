@@ -53,14 +53,14 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
             if (!state) {
                 // Fetch user's actual balance from Supabase
                 let initialBalance = 10000; // Fallback default
-                
+
                 try {
                     const { data: profile, error } = await supabase
                         .from('profiles')
                         .select('balance')
                         .eq('id', userId)
                         .single();
-                    
+
                     if (!error && profile) {
                         initialBalance = parseFloat(profile.balance) || 10000;
                     }
@@ -146,8 +146,24 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
             return false;
         }
 
+        // SEC-08 Fix: Prevent self-payment
+        if (recipientId && recipientId === userId) {
+            console.error('Cannot pay yourself');
+            return false;
+        }
+
+        // SEC-06 Fix: Sanitize description
+        const safeDescription = description
+            .replace(/[<>]/g, '') // Remove angle brackets (XSS prevention)
+            .replace(/javascript:/gi, '') // Remove JS protocol
+            .slice(0, 100) // Limit length
+            || 'Transaction';
+
+        // SEC-05 Fix: Round amount to 2 decimal places
+        const safeAmount = Math.round(amount * 100) / 100;
+
         // Check sufficient balance for debits
-        if (type === 'debit' && walletState.shadow_balance < amount) {
+        if (type === 'debit' && walletState.shadow_balance < safeAmount) {
             console.error('Insufficient shadow balance');
             return false;
         }
@@ -155,15 +171,15 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
         try {
             const timestamp = Date.now();
             const offlineId = generateOfflineId();
-            const signature = await generateSignature(userId, offlineId, amount, timestamp);
+            const signature = await generateSignature(userId, offlineId, safeAmount, timestamp);
 
             const transaction: OfflineTransaction = {
                 offline_id: offlineId,
                 user_id: userId,
                 recipient_id: recipientId, // For P2P transfers
-                amount,
+                amount: safeAmount,
                 type,
-                description,
+                description: safeDescription,
                 timestamp,
                 signature,
                 sync_status: 'pending',
@@ -175,8 +191,8 @@ export function useShadowTransaction(userId: string | null): UseShadowTransactio
 
             // Update shadow balance immediately
             const newShadow = type === 'debit'
-                ? walletState.shadow_balance - amount
-                : walletState.shadow_balance + amount;
+                ? walletState.shadow_balance - safeAmount
+                : walletState.shadow_balance + safeAmount;
 
             const updatedState: WalletState = {
                 ...walletState,

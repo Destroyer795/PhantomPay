@@ -155,6 +155,14 @@ export function QRCodeScanner({ onScan, onClose, maxAmount }: QRCodeScannerProps
     const handleConfirmPayment = () => {
         if (!scannedData) return;
 
+        // BUG-03 Fix: Check QR code expiration (10 minutes)
+        const qrAge = Date.now() - scannedData.timestamp;
+        const TEN_MINUTES = 10 * 60 * 1000;
+        if (qrAge > TEN_MINUTES) {
+            setError('This QR code has expired. Please request a new one.');
+            return;
+        }
+
         const paymentAmount = scannedData.amount || parseFloat(amount);
 
         if (!paymentAmount || paymentAmount <= 0) {
@@ -162,14 +170,17 @@ export function QRCodeScanner({ onScan, onClose, maxAmount }: QRCodeScannerProps
             return;
         }
 
-        if (maxAmount !== undefined && paymentAmount > maxAmount) {
+        // SEC-05 Fix: Limit decimal precision to 2 places
+        const roundedAmount = Math.round(paymentAmount * 100) / 100;
+
+        if (maxAmount !== undefined && roundedAmount > maxAmount) {
             setError(`Insufficient balance. Max: ${maxAmount.toLocaleString()} Rs`);
             return;
         }
 
         onScan({
             ...scannedData,
-            amount: paymentAmount
+            amount: roundedAmount
         });
     };
 
@@ -327,6 +338,12 @@ export function QRPaymentModal({ userId, maxAmount, onPayment, onClose }: QRPaym
 
     const handleScan = async (data: QRPaymentData) => {
         if (!data.amount) return;
+
+        // SEC-08 Fix: Prevent self-payment
+        if (data.recipient_id === userId) {
+            setResult('error');
+            return;
+        }
 
         setIsProcessing(true);
         try {
