@@ -80,11 +80,16 @@ export default function LoginPage() {
 
                 console.log('Sign up success:', data);
 
+                // Check if user already exists (Supabase returns user but with empty identities)
+                if (data.user && data.user.identities && data.user.identities.length === 0) {
+                    throw new Error('User already exists. Please sign in instead.');
+                }
+
                 if (data.session) {
                     // Email confirmation is disabled
                     router.replace('/dashboard');
-                } else {
-                    // Email confirmation is enabled
+                } else if (data.user) {
+                    // Email confirmation is enabled - new user created
                     setMessage('Account created! Please check your email inbox (and spam) to confirm.');
                 }
             } else {
@@ -209,7 +214,7 @@ export default function LoginPage() {
                                     />
                                 </div>
                                 <p className="text-xs text-slate-500 mt-1.5">
-                                    {initialBalance && !isNaN(parseFloat(initialBalance)) 
+                                    {initialBalance && !isNaN(parseFloat(initialBalance))
                                         ? `Starting with Rs ${parseFloat(initialBalance).toLocaleString()}`
                                         : 'Leave empty for default (Rs 10,000)'}
                                 </p>
@@ -218,37 +223,9 @@ export default function LoginPage() {
 
                         {/* Error */}
                         {error && (
-                            <div className="flex flex-col gap-2 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                    {error}
-                                </div>
-                                {error.includes('already registered') && (
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            setMessage(null);
-                                            setError(null);
-                                            setIsLoading(true);
-                                            const { error: resendError } = await supabase.auth.resend({
-                                                type: 'signup',
-                                                email,
-                                                options: {
-                                                    emailRedirectTo: `${window.location.origin}/`,
-                                                }
-                                            });
-                                            setIsLoading(false);
-                                            if (resendError) {
-                                                setError(resendError.message);
-                                            } else {
-                                                setMessage('Confirmation email sent! Please check your inbox and spam folder.');
-                                            }
-                                        }}
-                                        className="text-xs font-semibold underline hover:text-red-300 text-left"
-                                    >
-                                        Resend Confirmation Email?
-                                    </button>
-                                )}
+                            <div className="flex items-center gap-2 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                {error}
                             </div>
                         )}
 
