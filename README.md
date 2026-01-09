@@ -4,7 +4,7 @@
 
 > Your payments are protected by our offline-sync technology. Even if everything goes down, PhantomPay saves every transaction. Now with AI-powered voice commands!
 
-## What's New: AI Voice Assistant 2.0
+## What's New: AI Voice Assistant
 
 **Conversational AI** - Multi-turn conversations with natural language understanding  
 **Smart Intent Recognition** - Correctly identifies payment vs receive commands  
@@ -189,7 +189,7 @@ Server-side check prevents overdraft even if client is compromised.
 
 ---
 
-## 📝 License
+## License
 
 MIT License - Build2Break Hackathon 2026
 
